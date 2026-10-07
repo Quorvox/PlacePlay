@@ -757,7 +757,7 @@ h2.sec i{color:var(--acc)}
     </div>
     <div id="apiCheck" style="font-size:12px;color:var(--mut);margin-top:8px"></div>
     <div class="fld" style="margin-top:12px"><label>Код для вставки на другую страницу</label><input id="apiSnippet" readonly onclick="this.select()"></div>
-    <div class="fld" style="margin-top:12px"><label>Релей (свой воркер или https://ntfy.sh)</label><input id="apiRelay" placeholder="https://...workers.dev" onchange="saveRelay()"></div>
+    <div class="fld" style="margin-top:12px"><label>Релей (свой воркер или https://ntfy.adminforge.de)</label><input id="apiRelay" placeholder="https://...workers.dev" onchange="saveRelay()"></div>
   </div>
 </div></div>
 
@@ -2073,7 +2073,7 @@ function profileJSON(){
   kd:+kd.toFixed(2),hs:user.hs,adr:user.adr,winrate:wr,
   updatedAt:new Date().toISOString()};
 }
-function relayBase(){ let b=''; try{b=localStorage.getItem('pp_relay')||'';}catch(e){} b=String(b||'').trim().replace(/\/+$/,''); return b||'https://ntfy.sh'; }
+function relayBase(){ let b=''; try{b=localStorage.getItem('pp_relay')||'';}catch(e){} b=String(b||'').trim().replace(/\/+$/,''); return b||'https://ntfy.adminforge.de'; }
 function pushTopic(){return 'pp_profile_'+String((user&&user.name)||'sqlen').toLowerCase().replace(/[^a-z0-9_]/g,'');}
 let pushT=null;
 function pushProfile(){
@@ -2131,7 +2131,7 @@ function copyApiJson(){
 function downloadStandalone(){
  const d=profileJSON();
  let relay=''; try{relay=localStorage.getItem('pp_relay')||'';}catch(e){}
- relay=String(relay||'').trim().replace(/\/+$/,'')||'https://ntfy.sh';
+ relay=String(relay||'').trim().replace(/\/+$/,'')||'https://ntfy.adminforge.de';
  const topic='pp_profile_'+String(d.name||'sqlen').toLowerCase().replace(/[^a-z0-9_]/g,'');
  const data=JSON.stringify(d).replace(/<\//g,'<\\/');
  const html='<!DOCTYPE html>\n<html lang="ru">\n<head>\n<meta charset="UTF-8">\n'
@@ -2213,7 +2213,7 @@ function downloadWidget(){
  +'<div class="pp-grid" id="grid"></div>'
  +'<div class="pp-foot"><span id="upd"></span><span>PlacePlay</span></div>'
  +'</div></div>\n<script>\n'
- +'var RELAY="https://ntfy.sh",TOPIC="pp_profile_sqlen";\n'
+ +'var RELAY="https://ntfy.adminforge.de",TOPIC="pp_profile_sqlen";\n'
  +'function esc(s){return String(s==null?"":s).replace(/[<>&"]/g,function(c){return {"<":"&lt;",">":"&gt;","&":"&amp;","\\"":"&quot;"}[c];});}\n'
  +'function render(d){if(!d||typeof d.elo==="undefined")return;'
  +'document.getElementById("err").style.display="none";document.getElementById("body").style.display="block";'

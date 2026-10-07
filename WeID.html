@@ -232,7 +232,7 @@ function scanLoop() {
 function approve() {
   if (!myId) { setStatus("Сначала отсканируй QR.", "err"); return; }
   setStatus("Отправляю разрешение...");
-  fetch("https://ntfy.sh/" + topicFor(myId), { method: "POST", body: "OK" })
+  fetch("https://ntfy.adminforge.de/" + topicFor(myId), { method: "POST", body: "OK" })
     .then(function (r) {
       if (r.ok) setStatus("Готово: сайт пропущен. Смотри экран.", "ok");
       else setStatus("Релей ответил: " + r.status, "err");

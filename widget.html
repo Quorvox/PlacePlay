@@ -100,7 +100,7 @@ body{font-family:'Inter',sans-serif;background:transparent;color:#f2f5f9}
     return last;
   }
   var customSrc = !!q.get('data');
-  var relay = (q.get('relay') || 'https://ntfy.sh').replace(/\/+$/, '');
+  var relay = (q.get('relay') || 'https://ntfy.adminforge.de').replace(/\/+$/, '');
   var topic = q.get('topic') || 'pp_profile_sqlen';
   var liveOk = false, liveTries = 0;
   function showErr(t){ var e=document.getElementById('err'); e.style.display='block'; e.textContent=t; }
