@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>WeID — пропуск PlacePlay</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0b0b0e;--card:#17171d;--line:#232329;--txt:#f2f2f5;--mut:#8b8b96;--acc:#ff0000}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:radial-gradient(ellipse at 50% 0%,rgba(255,0,0,.12),transparent 60%),var(--bg);color:var(--txt);min-height:100vh;padding:22px 18px 40px}
+.wrap{max-width:440px;margin:0 auto}
+h1{font-size:38px;font-weight:900;color:var(--acc);letter-spacing:-1px}
+.sub{color:var(--mut);font-size:13px;margin:2px 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:12px}
+.lab{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:1px}
+#myId{font-family:monospace;font-size:30px;font-weight:900;color:var(--acc);margin-top:4px;letter-spacing:2px;word-break:break-all}
+button{width:100%;padding:16px;border:none;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;margin-bottom:10px}
+button:active{transform:scale(.98)}
+.btn-p{background:linear-gradient(135deg,#ff0000,#8f0000);color:#fff;box-shadow:0 8px 26px rgba(255,0,0,.35)}
+.btn-g{background:#1d1d23;color:#fff;border:1px solid var(--line)}
+button:disabled{opacity:.35}
+input{width:100%;padding:14px;background:#0e0e12;border:1px solid var(--line);border-radius:10px;color:#fff;font-family:monospace;font-size:14px;margin-bottom:10px;outline:none}
+input:focus{border-color:var(--acc)}
+#status{font-size:13px;color:var(--mut);margin-top:6px;min-height:20px}
+#status.ok{color:#22e584}
+#status.err{color:#ff5a5a}
+.topic{font-size:11px;color:var(--mut);font-family:monospace;text-align:center;margin-top:14px;word-break:break-all}
+.hidden{display:none}
+.scan-hint{font-size:12px;color:var(--mut);text-align:center;margin-top:8px}
+.viewfinder{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);margin-bottom:10px;background:#000}
+.viewfinder video{width:100%;display:block;background:#000}
+.viewfinder .corners{position:absolute;inset:22px;border:2px solid var(--acc);border-radius:12px;pointer-events:none;opacity:.9;box-shadow:0 0 24px rgba(255,0,0,.35)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>WeID</h1>
+  <div class="sub">пропуск для PlacePlay • наведи телефон на QR сайта</div>
+
+  <div class="card">
+    <div class="lab">Мой ID</div>
+    <div id="myId">—</div>
+  </div>
+
+  <button class="btn-p" id="scanBtn" onclick="startScanner()">СКАНИРОВАТЬ QR</button>
+  <div id="scanBox" class="hidden">
+    <div class="viewfinder"><video id="camVideo" playsinline muted></video><div class="corners"></div></div>
+    <button class="btn-g" onclick="stopScanner()">Отмена</button>
+  </div>
+  <input type="file" id="fileIn" accept="image/*" capture="environment" class="hidden">
+  <button class="btn-g hidden" id="photoBtn" onclick="document.getElementById('fileIn').click()">СФОТКАТЬ ВМЕСТО СКАНА</button>
+  <div class="scan-hint" id="scanHint">наведи камеру на QR с экрана</div>
+
+  <button class="btn-g" id="pasteBtn" onclick="togglePaste()">Вставить код вручную</button>
+  <div id="pasteBox" class="hidden">
+    <input id="codeIn" placeholder="WP1-000000000000-XXXXXX" autocomplete="off">
+    <button class="btn-g" onclick="checkPasted()">Проверить код</button>
+  </div>
+
+  <button class="btn-p" id="goBtn" onclick="approve()" disabled>РАЗРЕШИТЬ ВХОД</button>
+  <div id="status">Отсканируй QR с экрана входа.</div>
+  <div class="topic" id="topicLab"></div>
+</div>
+
+<script>
+var ABC = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+var SALT = "|placeplay-wechat";
+var myId = "";
+try { myId = localStorage.getItem("weid_phone_id") || ""; } catch (e) {}
+if (!/^\d{12}$/.test(myId)) myId = "";
+
+function weCheck(id12) {
+  var h = 0x811C9DC5 >>> 0, i;
+  var s = id12 + SALT;
+  for (i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  var out = "", n = h;
+  for (i = 0; i < 6; i++) { out = ABC[n % 36] + out; n = Math.floor(n / 36); }
+  return out;
+}
+function topicFor(id12) { return "ppwe_" + weCheck(id12).toLowerCase(); }
+
+function setStatus(t, cls) {
+  var el = document.getElementById("status");
+  el.textContent = t;
+  el.className = cls || "";
+}
+function refresh() {
+  document.getElementById("myId").textContent = myId || "—";
+  document.getElementById("goBtn").disabled = !myId;
+  document.getElementById("topicLab").textContent = myId ? ("канал: " + topicFor(myId)) : "";
+}
+
+function handleCode(raw) {
+  var s = String(raw || "").trim().toUpperCase();
+  var m = s.match(/^WP1-(\d{12})-([0-9A-Z]{6})$/);
+  if (!m) { setStatus("Это не код WeID.", "err"); return false; }
+  if (weCheck(m[1]) !== m[2]) { setStatus("Шифр не сошёлся — чужой код.", "err"); return false; }
+  myId = m[1];
+  try { localStorage.setItem("weid_phone_id", myId); } catch (e) {}
+  refresh();
+  setStatus("Код свой. Можно разрешать вход.", "ok");
+  return true;
+}
+function togglePaste() {
+  var b = document.getElementById("pasteBox");
+  b.classList.toggle("hidden");
+}
+function checkPasted() {
+  handleCode(document.getElementById("codeIn").value);
+}
+
+document.getElementById("fileIn").addEventListener("change", function (ev) {
+  var f = ev.target.files && ev.target.files[0];
+  if (!f) return;
+  if (typeof jsQR === "undefined") {
+    setStatus("Нет связи для сканера — вставь код вручную.", "err");
+    document.getElementById("pasteBox").classList.remove("hidden");
+    ev.target.value = "";
+    return;
+  }
+  setStatus("Читаю QR...");
+  var img = new Image();
+  img.onload = function () {
+    try {
+      var scale = Math.min(1, 1000 / Math.max(img.width, img.height));
+      var w = Math.max(1, Math.round(img.width * scale));
+      var h = Math.max(1, Math.round(img.height * scale));
+      var cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      var g = cv.getContext("2d");
+      g.drawImage(img, 0, 0, w, h);
+      var d = g.getImageData(0, 0, w, h);
+      var res = jsQR(d.data, w, h);
+      if (res && res.data) {
+        if (!handleCode(res.data)) { /* статус уже выставлен */ }
+      } else {
+        setStatus("QR не прочитался. Поднеси ближе и чётко.", "err");
+      }
+    } catch (e) {
+      setStatus("Ошибка чтения: " + e, "err");
+    }
+    ev.target.value = "";
+    try { URL.revokeObjectURL(img.src); } catch (e) {}
+  };
+  img.onerror = function () {
+    setStatus("Не смог открыть фото.", "err");
+    ev.target.value = "";
+  };
+  img.src = URL.createObjectURL(f);
+});
+
+var scanStream = null, scanRAF = 0, scanning = false;
+function show(el, on) { document.getElementById(el).classList.toggle("hidden", !on); }
+function startScanner() {
+  if (typeof jsQR === "undefined") {
+    setStatus("Сканеру нужен интернет (библиотека). Сфоткай или вставь код.", "err");
+    show("photoBtn", true);
+    document.getElementById("pasteBox").classList.remove("hidden");
+    return;
+  }
+  if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+    setStatus("Камера недоступна (открой страницу через https). Сфоткай или вставь код.", "err");
+    show("photoBtn", true);
+    document.getElementById("pasteBox").classList.remove("hidden");
+    return;
+  }
+  show("scanBox", true);
+  setStatus("Запускаю камеру...");
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
+    .then(function (stream) {
+      scanStream = stream;
+      scanning = true;
+      var v = document.getElementById("camVideo");
+      v.srcObject = stream;
+      v.play();
+      setStatus("Наведи рамку на QR...");
+      scanLoop();
+    })
+    .catch(function (e) {
+      stopScanner();
+      setStatus("Камера отклонена (" + (e && e.name || e) + "). Сфоткай или вставь код.", "err");
+      show("photoBtn", true);
+      document.getElementById("pasteBox").classList.remove("hidden");
+    });
+}
+function stopScanner() {
+  scanning = false;
+  try { cancelAnimationFrame(scanRAF); } catch (e) {}
+  try {
+    if (scanStream) {
+      scanStream.getTracks().forEach(function (t) { t.stop(); });
+      scanStream = null;
+    }
+  } catch (e) {}
+  var v = document.getElementById("camVideo");
+  try { v.srcObject = null; } catch (e) {}
+  show("scanBox", false);
+}
+function scanLoop() {
+  if (!scanning) return;
+  try {
+    var v = document.getElementById("camVideo");
+    if (v.readyState === v.HAVE_ENOUGH_DATA && v.videoWidth > 0) {
+      var w = 480, h = Math.max(1, Math.round(480 * v.videoHeight / v.videoWidth));
+      var cv = document.getElementById("scanCanvas");
+      if (!cv) {
+        cv = document.createElement("canvas");
+        cv.id = "scanCanvas";
+        cv.style.display = "none";
+        document.body.appendChild(cv);
+      }
+      cv.width = w; cv.height = h;
+      var g = cv.getContext("2d");
+      g.drawImage(v, 0, 0, w, h);
+      var d = g.getImageData(0, 0, w, h);
+      var res = jsQR(d.data, w, h);
+      if (res && res.data) {
+        stopScanner();
+        handleCode(res.data);
+        return;
+      }
+    }
+  } catch (e) {
+    stopScanner();
+    setStatus("Ошибка скана: " + (e && e.message || e), "err");
+    show("photoBtn", true);
+    return;
+  }
+  scanRAF = requestAnimationFrame(scanLoop);
+}
+function approve() {
+  if (!myId) { setStatus("Сначала отсканируй QR.", "err"); return; }
+  setStatus("Отправляю разрешение...");
+  fetch("https://ntfy.sh/" + topicFor(myId), { method: "POST", body: "OK" })
+    .then(function (r) {
+      if (r.ok) setStatus("Готово: сайт пропущен. Смотри экран.", "ok");
+      else setStatus("Релей ответил: " + r.status, "err");
+    })
+    .catch(function (e) { setStatus("Нет связи: " + e, "err"); });
+}
+
+if (typeof jsQR === "undefined") {
+  document.getElementById("scanHint").textContent = "сканер без интернета недоступен — вставь код вручную";
+}
+refresh();
+</script>
+</body>
+</html>

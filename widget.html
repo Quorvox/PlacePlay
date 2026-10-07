@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlacePlay Widget</title>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:transparent;color:#f2f5f9}
+.pp-w{position:relative;width:360px;max-width:100%;background:linear-gradient(135deg,rgba(30,5,5,.97),rgba(10,10,14,.97));border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:18px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.5),0 0 30px rgba(255,0,0,.12)}
+.pp-w::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#ff0000,#ffd34d,transparent)}
+.pp-w::after{content:'';position:absolute;top:-60px;right:-60px;width:160px;height:160px;background:radial-gradient(circle,rgba(255,0,0,.25),transparent 70%);pointer-events:none}
+.pp-w.mini{width:290px}
+.pp-head{position:relative;display:flex;align-items:center;gap:12px;z-index:1}
+.pp-av{width:58px;height:58px;border-radius:14px;object-fit:cover;border:2px solid rgba(255,0,0,.6);background:#1a2130;flex-shrink:0;box-shadow:0 0 16px rgba(255,0,0,.3)}
+.pp-av.letter{display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px;font-family:'Unbounded';background:linear-gradient(135deg,#2b0606,#120303)}
+.pp-name{font-weight:900;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-clan{display:inline-block;background:rgba(255,0,0,.07);border:1px solid #ff0000;color:#ff4d4d;font-size:10px;font-weight:800;padding:1px 7px;border-radius:6px;margin-left:6px;vertical-align:middle}
+.pp-ver{font-size:14px;color:#ffd34d;vertical-align:middle;margin-left:2px;filter:drop-shadow(0 0 4px rgba(255,211,77,.7))}
+.pp-rank{font-size:11px;color:#8b94a7;text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.pp-rank b{color:#ffd34d}
+.pp-live{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;color:#22e584;margin-left:8px}
+.pp-live i{width:7px;height:7px;border-radius:50%;background:#22e584;animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.3}}
+.pp-elo{position:relative;display:flex;align-items:baseline;gap:10px;margin:14px 0 4px;z-index:1}
+.pp-elo b{font-family:'Unbounded';font-size:38px;font-weight:800;background:linear-gradient(100deg,#fff 30%,#ff5252);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.pp-lvl{font-size:11px;color:#8b94a7;text-transform:uppercase;letter-spacing:1px}
+.pp-lvl b{color:#fff;font-size:13px}
+.pp-wrbar{height:5px;background:rgba(255,255,255,.08);border-radius:3px;margin-top:10px;overflow:hidden}
+.pp-wrbar i{display:block;height:100%;background:linear-gradient(90deg,#ff0000,#ffd34d);border-radius:3px}
+.pp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;position:relative;z-index:1}
+.pp-cell{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:9px 4px;text-align:center;transition:.2s}
+.pp-cell:hover{border-color:rgba(255,0,0,.5);transform:translateY(-2px)}
+.pp-cell i{display:block;font-size:16px;color:#ff5252;margin-bottom:2px}
+.pp-cell b{display:block;font-size:15px}
+.pp-cell span{font-size:9px;color:#8b94a7;text-transform:uppercase}
+.pp-cell .up{color:#22e584}
+.pp-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:10px;color:#8b94a7;position:relative;z-index:1}
+.pp-foot a{color:#ff4d4d;text-decoration:none;font-weight:700}
+.pp-foot a:hover{text-decoration:underline}
+.pp-err{padding:22px;text-align:center;color:#8b94a7;font-size:13px;position:relative;z-index:1}
+</style>
+</head>
+<body>
+<div class="pp-w" id="w">
+  <div class="pp-err" id="err">Загрузка профиля…</div>
+  <div id="body" style="display:none">
+    <div class="pp-head">
+      <img class="pp-av" id="av" alt="">
+      <div style="min-width:0">
+        <div class="pp-name"><span id="nm"></span><span id="cl"></span><span id="vf"></span></div>
+        <div class="pp-rank">PlacePlay • ранг <b id="rk"></b><span class="pp-live" id="live" style="display:none"><i></i>LIVE</span></div>
+      </div>
+    </div>
+    <div class="pp-elo"><b id="elo"></b><span class="pp-lvl">ELO • LVL <b id="lv"></b></span></div>
+    <div class="pp-wrbar"><i id="wrb"></i></div>
+    <div class="pp-grid" id="grid"></div>
+    <div class="pp-foot"><span id="upd"></span><span><a href="#" id="refBtn" onclick="window.ppRefresh&&window.ppRefresh();return false;" style="margin-right:8px">Обновить</a><a href="https://itcompotshool-jpg.github.io/PlacePlay/" id="lnk" target="_blank">PlacePlay</a></span></div>
+  </div>
+</div>
+<script>
+(function(){
+  var q = new URLSearchParams(location.search);
+  var src = q.get('data') || 'profile.json';
+  var mini = q.get('mini') === '1';
+  if (mini) document.getElementById('w').classList.add('mini');
+  function esc(s){return String(s==null?'':s).replace(/[<>&"]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c];});}
+  function render(d, live){
+    if(!d||typeof d.elo==='undefined'){document.getElementById('err').style.display='block';return;}
+    document.getElementById('err').style.display='none';
+    document.getElementById('body').style.display='block';
+    var av = document.getElementById('av');
+    if(d.avatar){av.src=d.avatar;av.onerror=function(){var s=document.createElement('div');s.className='pp-av letter';s.textContent=String(d.name||'P').charAt(0).toUpperCase();av.replaceWith(s);};}
+    else{var s=document.createElement('div');s.className='pp-av letter';s.textContent=String(d.name||'P').charAt(0).toUpperCase();av.replaceWith(s);}
+    document.getElementById('nm').textContent=d.name||'—';
+    document.getElementById('cl').innerHTML=d.clan?'<span class="pp-clan">'+esc(d.clan)+'</span>':'';
+    document.getElementById('vf').innerHTML=d.verified?'<span class="pp-ver">✔</span>':'';
+    document.getElementById('rk').textContent=(d.rank==null?'—':'#'+d.rank);
+    document.getElementById('elo').textContent=(+d.elo).toLocaleString('ru-RU');
+    document.getElementById('lv').textContent=(d.level==null?'—':d.level);
+    document.getElementById('live').style.display=live?'inline-flex':'none';
+    var m=+d.matches||0, w=+d.wins||0, wr=m?Math.round(w/m*100):0;
+    document.getElementById('wrb').style.width=wr+'%';
+    var cells = mini
+      ? [['emoji_events',w,'Победы',''],['thumb_down',m-w,'Пораж.',''],['speed',(d.kd==null?'—':d.kd),'K/D',''],['sports_esports',m,'Матчи','']]
+      : [['emoji_events',w,'Победы','up'],['thumb_down',m-w,'Пораж.',''],['speed',(d.kd==null?'—':d.kd),'K/D',''],['my_location',(d.hs==null?'—':d.hs+'%'),'HS%','']];
+    document.getElementById('grid').innerHTML=cells.map(function(c){
+      return '<div class="pp-cell"><i class="material-icons">'+c[0]+'</i><b class="'+c[3]+'">'+esc(c[1])+'</b><span>'+c[2]+'</span></div>';
+    }).join('');
+    var upd=''; try{upd=d.updatedAt?('Обновлено: '+new Date(d.updatedAt).toLocaleString('ru-RU')):'';}catch(e){}
+    document.getElementById('upd').textContent=upd;
+  }
+  function parseLive(t){
+    t=String(t==null?'':t).trim(); if(!t) return null;
+    try{var a=JSON.parse(t);if(Array.isArray(a)&&a.length&&a[a.length-1].message) return a[a.length-1].message;}catch(e){}
+    var last=null;
+    t.split('\n').forEach(function(l){l=l.trim();if(!l)return;try{var o=JSON.parse(l);if(o&&o.event==='message'&&o.message!=null)last=o.message;}catch(x){}});
+    return last;
+  }
+  var customSrc = !!q.get('data');
+  var relay = (q.get('relay') || 'https://ntfy.sh').replace(/\/+$/, '');
+  var topic = q.get('topic') || 'pp_profile_sqlen';
+  var liveOk = false, liveTries = 0;
+  function showErr(t){ var e=document.getElementById('err'); e.style.display='block'; e.textContent=t; }
+  function load(){
+    fetch(src,{cache:'no-store'}).then(function(r){
+      if(!r.ok)throw new Error('http '+r.status);
+      return r.json();
+    }).then(function(d){ render(d,false); }).catch(function(){
+      if(!liveOk) showErr('Файл рядом не читается. Жду живые данные… Если висит: открой сайт и нажми «Опубликовать».');
+    });
+  }
+  load();
+  setInterval(load,60000);
+  if(!customSrc){
+    var live = function(){
+      fetch(relay+'/'+topic+'/json?since=all',{cache:'no-store'}).then(function(r){
+        if(!r.ok)throw new Error('http '+r.status);
+        return r.text();
+      }).then(function(t){
+        var msg = parseLive(t);
+        if(msg){ liveOk=true; render(JSON.parse(msg), true); }
+      }).catch(function(){
+        liveTries++;
+        if(!liveOk&&liveTries>=2) showErr('Нет связи с релеем. Проверь интернет и нажми «Опубликовать» на сайте.');
+      });
+    };
+    window.ppRefresh = function(){ liveTries=0; load(); live(); };
+    live();
+    setInterval(live,10000);
+  }
+})();
+</script>
+</body>
+</html>
